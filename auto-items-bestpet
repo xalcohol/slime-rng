@@ -1,0 +1,46 @@
+-- LocalScript: magnetic loot pull + auto-equip best item every 3 minutes
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+local lootFolder = workspace:WaitForChild("Loot")
+local PULL_SPEED = 0.2  -- 0 = instant, 1 = very slow
+
+-- Remote reference
+local inventoryRemote = ReplicatedStorage
+    :WaitForChild("Packages")
+    :WaitForChild("_Index")
+    :WaitForChild("leifstout_networker@0.3.1")
+    :WaitForChild("networker")
+    :WaitForChild("_remotes")
+    :WaitForChild("InventoryService")
+    :WaitForChild("RemoteFunction")
+
+-- Auto-equip best item, fires immediately then every 3 minutes
+local function equipBest()
+    inventoryRemote:InvokeServer("requestEquipBest")
+end
+
+equipBest() -- fire once on startup
+
+task.spawn(function()
+    while true do
+        task.wait(180) -- 3 minutes
+        equipBest()
+    end
+end)
+
+-- Magnetic loot pull loop
+RunService.Heartbeat:Connect(function()
+    for _, item in ipairs(lootFolder:GetChildren()) do
+        if item:IsA("Model") and item.PrimaryPart then
+            local targetCFrame = hrp.CFrame + Vector3.new(0, 2, 0)
+            local currentCFrame = item.PrimaryPart.CFrame
+            item:SetPrimaryPartCFrame(currentCFrame:Lerp(targetCFrame, PULL_SPEED))
+        end
+    end
+end)
