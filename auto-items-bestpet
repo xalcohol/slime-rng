@@ -31,18 +31,17 @@ task.spawn(function()
     end
 end)
 
--- Instantly teleport a single loot item to the player
-local function grabItem(item)
-    if not item:IsA("Model") then return end
-    if item.PrimaryPart then
-        item:SetPrimaryPartCFrame(hrp.CFrame + Vector3.new(0, 3, 0))
+-- Sweep and teleport everything currently in the folder
+local function grabAllItems()
+    for _, item in ipairs(lootFolder:GetChildren()) do
+        if item:IsA("Model") and item.PrimaryPart then
+            item:SetPrimaryPartCFrame(hrp.CFrame + Vector3.new(0, 3, 0))
+        end
     end
 end
 
--- Handle loot already on the ground when script starts
-for _, item in ipairs(lootFolder:GetChildren()) do
-    grabItem(item)
-end
+-- Grab anything already on the ground on startup
+grabAllItems()
 
--- Handle new loot as it spawns
-lootFolder.ChildAdded:Connect(grabItem)
+-- Every new spawn triggers a full sweep
+lootFolder.ChildAdded:Connect(grabAllItems)
