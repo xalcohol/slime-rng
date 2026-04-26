@@ -1,4 +1,4 @@
--- LocalScript: magnetic loot pull + auto-equip best item every 3 minutes
+-- LocalScript: magnet loot only while items are present + auto-equip best every 3 minutes
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,7 +8,7 @@ local character = player.Character or player.CharacterAdded:Wait()
 local hrp = character:WaitForChild("HumanoidRootPart")
 
 local lootFolder = workspace:WaitForChild("Loot")
-local PULL_SPEED = 0.2  -- 0 = instant, 1 = very slow
+local PULL_SPEED = 0.2
 
 -- Remote reference
 local inventoryRemote = ReplicatedStorage
@@ -20,27 +20,38 @@ local inventoryRemote = ReplicatedStorage
     :WaitForChild("InventoryService")
     :WaitForChild("RemoteFunction")
 
--- Auto-equip best item, fires immediately then every 3 minutes
+-- Auto-equip
 local function equipBest()
     inventoryRemote:InvokeServer("requestEquipBest")
 end
 
-equipBest() -- fire once on startup
-
+equipBest()
 task.spawn(function()
     while true do
-        task.wait(180) -- 3 minutes
+        task.wait(180)
         equipBest()
     end
 end)
 
--- Magnetic loot pull loop
-RunService.Heartbeat:Connect(function()
-    for _, item in ipairs(lootFolder:GetChildren()) do
-        if item:IsA("Model") and item.PrimaryPart then
-            local targetCFrame = hrp.CFrame + Vector3.new(0, 2, 0)
-            local currentCFrame = item.PrimaryPart.CFrame
-            item:SetPrimaryPartCFrame(currentCFrame:Lerp(targetCFrame, PULL_SPEED))
+-- Per-item magnet loop: spawns a thread per loot piece, stops when it leaves the folder
+local function startMagnet(item)
+    if not item:IsA("Model") then return end
+
+    task.spawn(function()
+        while item.Parent == lootFolder do
+            if item.PrimaryPart then
+                local target = hrp.CFrame + Vector3.new(0, 2, 0)
+                item:SetPrimaryPartCFrame(item.PrimaryPart.CFrame:Lerp(target, PULL_SPEED))
+            end
+            RunService.Heartbeat:Wait()
         end
-    end
-end)
+    end)
+end
+
+-- Handle loot already on the ground when script starts
+for _, item in ipairs(lootFolder:GetChildren()) do
+    startMagnet(item)
+end
+
+-- Handle new loot as it spawns
+lootFolder.ChildAdded:Connect(startMagnet)
